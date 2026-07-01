@@ -49,10 +49,19 @@ def revisar_cupos():
         try:
             print("Abriendo PNP...", flush=True)
 
-            page.goto(
-                URL,
-                wait_until="load",
-                timeout=120000
+            response = page.goto(
+    URL,
+    wait_until="domcontentloaded",
+    timeout=120000
+)
+
+print("URL final:", page.url, flush=True)
+print("Título:", page.title(), flush=True)
+
+if response:
+    print("Status PNP:", response.status, flush=True)
+else:
+    print("Sin response PNP", flush=True)
             )
 
             print("Página cargada. Intentando login...", flush=True)
