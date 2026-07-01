@@ -1,7 +1,7 @@
 import os, time, requests
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
-URL = "https://sistemas.policia.gob.pe/lunasoscurecidas/solicitud_menu.aspx"
+URL = "https://www.google.com"
 
 PNP_USERNAME = os.getenv("PNP_USERNAME")
 PNP_PASSWORD = os.getenv("PNP_PASSWORD")
@@ -33,7 +33,11 @@ def revisar():
 
         try:
             print("Abriendo PNP...", flush=True)
-            page.goto(URL, wait_until="domcontentloaded", timeout=60000)
+            page.goto(
+    URL,
+    wait_until="load",
+    timeout=120000
+)
 
             page.get_by_label("Tipo Documento").select_option("1")
             page.get_by_role("textbox", name="Nro. Documento").fill(PNP_USERNAME)
