@@ -1,43 +1,61 @@
-import os, time, requests
-from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+import os
+import time
+import requests
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 URL = "https://sistemas.policia.gob.pe/lunasoscurecidas/solicitud_menu.aspx"
 
 PNP_USERNAME = os.getenv("PNP_USERNAME")
 PNP_PASSWORD = os.getenv("PNP_PASSWORD")
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "120"))
 
 ya_aviso = False
 
 
-def avisar(texto):
-    r = requests.post(
-        f"https://api.telegram.org/bot{TOKEN}/sendMessage",
-        data={"chat_id": CHAT_ID, "text": texto},
-        timeout=20,
-    )
-    print("Telegram:", r.status_code, r.text, flush=True)
+def avisar(mensaje):
+    try:
+        r = requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+            data={
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": mensaje
+            },
+            timeout=20
+        )
+        print("Telegram:", r.status_code, r.text, flush=True)
+    except Exception as e:
+        print("Error Telegram:", e, flush=True)
 
 
-def revisar():
+def revisar_cupos():
     global ya_aviso
+
+    print("Abriendo navegador...", flush=True)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
-            args=["--no-sandbox", "--disable-dev-shm-usage"]
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            ]
         )
+
         page = browser.new_page()
 
         try:
             print("Abriendo PNP...", flush=True)
-         page.goto(
-    URL,
-    wait_until="load",
-    timeout=120000
-)
+
+            page.goto(
+                URL,
+                wait_until="load",
+                timeout=120000
+            )
+
+            print("Página cargada. Intentando login...", flush=True)
 
             page.get_by_label("Tipo Documento").select_option("1")
             page.get_by_role("textbox", name="Nro. Documento").fill(PNP_USERNAME)
@@ -45,25 +63,39 @@ def revisar():
             page.get_by_role("button", name="Ingresar").click()
 
             print("Esperando expediente...", flush=True)
-            page.wait_for_selector("#MainContent_gvProgramacion_btnAccion_0", timeout=60000)
+
+            page.wait_for_selector(
+                "#MainContent_gvProgramacion_btnAccion_0",
+                timeout=90000
+            )
+
             page.locator("#MainContent_gvProgramacion_btnAccion_0").click()
 
-            print("Entrando a reservar cita...", flush=True)
+            print("Entrando a Reservar Cita...", flush=True)
+
             page.get_by_role("button", name="Reservar Cita").click()
 
-            page.wait_for_selector("#MainContent_idUcitas_cbosede", timeout=30000)
+            page.wait_for_selector(
+                "#MainContent_idUcitas_cbosede",
+                timeout=60000
+            )
+
             page.locator("#MainContent_idUcitas_cbosede").select_option("1")
 
-            time.sleep(5)
+            print("Sede seleccionada. Esperando fechas...", flush=True)
 
-            body = page.inner_text("body")
-            print("Texto detectado:", body[:1000], flush=True)
+            page.wait_for_timeout(8000)
 
-            if "Sin Cupos" in body:
+            texto = page.inner_text("body")
+
+            print("Texto detectado:", texto[:1500], flush=True)
+
+            if "Sin Cupos" in texto:
                 print("Sin cupos por ahora.", flush=True)
                 ya_aviso = False
             else:
                 print("POSIBLE CUPO DETECTADO", flush=True)
+
                 if not ya_aviso:
                     ya_aviso = True
                     avisar(
@@ -72,12 +104,15 @@ def revisar():
                         "Entra ahora al sistema de la PNP para revisar y reservar."
                     )
 
-        except PWTimeout as e:
+        except PlaywrightTimeoutError as e:
             print("TIMEOUT:", e, flush=True)
+
         except Exception as e:
-            print("ERROR:", e, flush=True)
+            print("ERROR GENERAL:", e, flush=True)
+
         finally:
             browser.close()
+            print("Navegador cerrado.", flush=True)
 
 
 def main():
@@ -85,7 +120,8 @@ def main():
     avisar("✅ Bot PNP iniciado. Revisaré cupos cada 2 minutos.")
 
     while True:
-        revisar()
+        revisar_cupos()
+        print(f"Esperando {CHECK_INTERVAL} segundos...", flush=True)
         time.sleep(CHECK_INTERVAL)
 
 
