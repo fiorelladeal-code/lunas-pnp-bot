@@ -18,11 +18,8 @@ def avisar(mensaje):
     try:
         r = requests.post(
             f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-            data={
-                "chat_id": TELEGRAM_CHAT_ID,
-                "text": mensaje
-            },
-            timeout=20
+            data={"chat_id": TELEGRAM_CHAT_ID, "text": mensaje},
+            timeout=20,
         )
         print("Telegram:", r.status_code, r.text, flush=True)
     except Exception as e:
@@ -37,11 +34,7 @@ def revisar_cupos():
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu"
-            ]
+            args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
         )
 
         page = browser.new_page()
@@ -50,19 +43,18 @@ def revisar_cupos():
             print("Abriendo PNP...", flush=True)
 
             response = page.goto(
-    URL,
-    wait_until="domcontentloaded",
-    timeout=120000
-)
-
-print("URL final:", page.url, flush=True)
-print("Título:", page.title(), flush=True)
-
-if response:
-    print("Status PNP:", response.status, flush=True)
-else:
-    print("Sin response PNP", flush=True)
+                URL,
+                wait_until="domcontentloaded",
+                timeout=120000,
             )
+
+            print("URL final:", page.url, flush=True)
+            print("Título:", page.title(), flush=True)
+
+            if response:
+                print("Status PNP:", response.status, flush=True)
+            else:
+                print("Sin response PNP", flush=True)
 
             print("Página cargada. Intentando login...", flush=True)
 
@@ -75,7 +67,7 @@ else:
 
             page.wait_for_selector(
                 "#MainContent_gvProgramacion_btnAccion_0",
-                timeout=90000
+                timeout=90000,
             )
 
             page.locator("#MainContent_gvProgramacion_btnAccion_0").click()
@@ -86,7 +78,7 @@ else:
 
             page.wait_for_selector(
                 "#MainContent_idUcitas_cbosede",
-                timeout=60000
+                timeout=60000,
             )
 
             page.locator("#MainContent_idUcitas_cbosede").select_option("1")
@@ -104,7 +96,6 @@ else:
                 ya_aviso = False
             else:
                 print("POSIBLE CUPO DETECTADO", flush=True)
-
                 if not ya_aviso:
                     ya_aviso = True
                     avisar(
